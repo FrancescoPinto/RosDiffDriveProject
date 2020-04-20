@@ -1,0 +1,2 @@
+# RosDiffDriveProject
+ROS+Gazebo project about a Differential Drive Robot, developed for the Robotics Course (2018) at Polimi. The project is split in two parts. In the first part, a Gazebo model of a Differential Drive robot is produced, and endowed with a wheel encoder plugin. In the second part, an odometry node is developed and the mapping and localization of a differential drive robot with IMU, a Wheel Encoder and a LIDAR scanner is set up using gmapping and acml. The bags are not provided.
