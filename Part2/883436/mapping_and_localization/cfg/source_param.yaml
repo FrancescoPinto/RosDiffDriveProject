@@ -1,0 +1,3 @@
+odom_source: encoders
+#set imu/encoders
+use_sim_time: true

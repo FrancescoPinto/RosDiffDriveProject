@@ -1,0 +1,38 @@
+<launch>
+    <arg name="initial_odom_xytheta" value="-1.43000364304	-0.370946109295	0.0100438956985"/> <!-- prima bag, prima dell'aggiornamento per mancanza di imu!!!-->
+    <arg name="path" default="$(find odometry_node)" />
+
+    <!--    uncom/bags/ment one of the pairs of lines (and comment the others) to select a bag file to launch
+ -->
+ <!--
+    <arg name="file_1" default="/bags/first_bag"/>
+    <arg name="file_1_initial_position" default="-1.43000364304	-0.370946109295	0.347480863333 0.00856487918645 0.00594052160159 -0.00497096590698 -0.999933362007"/>
+    <arg name="file_1_odom_inital_position" default="-1.60000364304	-0.370946109295	0.381880863333 0.00856487918645 0.00594052160159 -0.00497096590698 -0.999933362007"/>
+    <arg name = "is_corrupted_bag" default = "false"/>
+    -->
+   <!--
+   <arg name="file_1" default="/bags/second_bag" />
+    <arg name="file_1_initial_position" default="-1.72984862328	-0.251070320606	0.34084969759	0.0131932720542 -0.0179354064167 0.0751273036003 -0.996925413609"/>
+    <arg name="file_1_odom_inital_position" default="-1.89984862328	-0.250820159912	0.37584969759	0.0131932720542 -0.0179354064167 0.0751273036003 -0.996925413609"/>
+    <arg name = "is_corrupted_bag" default = "false"/>
+    -->
+   
+    <arg name="file_1" default="/bags/square"/> 
+    <arg name="file_1_initial_position" default="0 0 0 0 0 0 1"/>
+    <arg name="file_1_odom_inital_position" default="-0.17 0 0.034 0 0 0 1"/>
+        <arg name = "is_corrupted_bag" default = "false"/>
+    
+
+<!--
+    <arg name="file_1" default="/bags/imu_bag" />
+    <arg name="file_1_initial_position" default="-2.11174106598	-0.295683503151	0.337565153837	0.0015505530173	0.00386534957215	-0.134292826056	0.990932941437"/>
+    <arg name="file_1_odom_inital_position" default="-2.28174106598	-0.295683503151	0.371565153837	0.0015505530173	0.00386534957215	-0.134292826056	0.990932941437"/>
+    <arg name="is_corrupted_bag" default="true"/>  
+-->
+    <node pkg="tf" type="static_transform_publisher" name="map_to_odom" args="$(arg file_1_odom_inital_position) map odom 1000"/>
+    <node pkg="rosbag" type="play" name="player" output="screen" args="--clock $(arg path)$(arg file_1).bag"/>
+    <rosparam command="load" file="$(find odometry_node)/cfg/source_param.yaml" />
+    <node name="marker_node" pkg="odometry_node" type="rviz_visual_node" output="screen"/>
+
+     <node name="odometry_node" pkg="odometry_node" type="odometry_node" args="$(arg file_1_initial_position) 1.0 0.49 0.55 $(arg is_corrupted_bag)" output="screen"/> <!-- 1.0 0.8 non male, 0.8 0.8 va meglio, 0.6 0.8 meglio, 0.6 0.7 NO ASSOLUTAMENTE NO-->
+</launch>

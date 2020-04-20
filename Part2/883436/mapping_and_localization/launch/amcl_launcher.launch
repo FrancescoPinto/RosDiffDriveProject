@@ -1,0 +1,43 @@
+
+<launch>
+
+  <!-- Name of the map to use and initial position -->
+  <!-- ottenuto ottima localizzazione con last_bag_Corridor_short_finished.yaml-->
+  <arg name="map_file"       default="$(find mapping_and_localization)/maps/imu_map_ended_bag.yaml"/> <!--  last_bag_corridor_long.yaml è la vecchia, poi meglio consistent_params_long_corridor.map.yaml, consistent_correct_params_long_corridor-->
+  <arg name="initial_pose_x" default="0.0"/>
+  <arg name="initial_pose_y" default="0.0"/>
+  <arg name="initial_pose_a" default="0.0"/>
+
+  <arg name="odom_frame_id"   default="odom"/>
+  <arg name="global_frame_id" default="map"/>
+
+  <param name="/use_sim_time" value="true"/>
+
+
+  <!--  ****** Maps *****  -->
+  <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)">
+    <param name="frame_id" value="map"/>
+  </node>
+
+
+  <!--  ****** amcl *****  -->
+  <include file="$(find mapping_and_localization)/launch/amcl.launch.xml">
+    <arg name="scan_topic" value="scan"/>
+    <arg name="use_map_topic" value="true"/>
+    <arg name="initial_pose_x" value="$(arg initial_pose_x)"/>
+    <arg name="initial_pose_y" value="$(arg initial_pose_y)"/>
+    <arg name="initial_pose_a" value="$(arg initial_pose_a)"/>
+  </include>
+
+  <node pkg="rosbag" type="play" name="player" output="screen" args="--clock $(find mapping_and_localization)/bags/corridor_short.bag"/>
+    <!--<node pkg="tf" type="static_transform_publisher" name="map_frame_publisher" args="0 0 0 0 0 0 1 world map 1000"/>-->
+
+
+    <!-- valori usati per le vecchie mappe 0 0 0 0 0 0 1 0.90 0.58 false-->
+     <node name="odometry_node" pkg="odometry_node" type="odometry_node" args="0 0 0 0 0 0 1 1.0 0.49 0.55 false" output="screen"/>
+    <rosparam command="load" file="$(find mapping_and_localization)/cfg/source_param.yaml" />
+    <node pkg="tf" type="static_transform_publisher" name="map_to_odom" args="0.17 0 -0.034 0 0 0 1 map odom 1000"/>
+
+  <!--  **************** Visualisation ****************  -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find mapping_and_localization)/rviz/robot_navigation.rviz"/>
+</launch>

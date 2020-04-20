@@ -1,0 +1,126 @@
+IMPORTANTE: il progetto è stato testato e funziona, a parte alcuni malfunzionamenti (segnalati TUTTI in questo documento). 
+Qualora non dovesse eseguire, provare a ricompilare con catkin_make. Qualora malfunzionamenti diversi da quelli segnalati 
+persistessero, vi chiederei gentilmente di contattarmi sulla mail personale (o su slack) francesco1.pinto@mail.polimi.it.
+
+ID: 883436 
+Pinto Francesco
+
+Sono fornite due cartelle:
+- odometry_node
+- mapping_and_localization
+
+Entrambe vanno copiate nel /src del workspac
+All'interno delle varie cartelle \bags vanno poste le bag fornite con il progetto (non le includo
+all'interno del progetto perché in tal caso l'archivio peserebbe troppo)
+
+La cartella odometry_node contiene:
+	-\bags contenente le bags fornite per il progetto per la parte di odometria
+	-\cfg\source_param.yaml che contiene il valore di default del parametro della sorgente dell'odometria
+	-\launch\launcher.launch che contiene il file da passare a roslaunch (per visualizzare su rviz, lanciarlo separatamente e settare rviz manualmente)
+	-\msg\customOdom.msg che contiene la definizione del messaggio di odometria custom 
+	-\src
+		-\odometry_node.cpp implementa il nodo che gestisce tutto ciò che riguarda l'odometria
+		-\rviz_visual_node.cpp implementa il nodo che produce i markers per rviz (utile solo per second_bag in cui il tf del pose è un po' sballato)
+	-\CMakeLists.txt 
+	-\package.xml
+
+La cartella mapping_and_localization contiene:
+	-\bags contenente le bags fornite per il il progetto per la parte di mapping and localization
+	-\cfg\source_param.yaml che contiene il valore di default del parametro della sorgente di odometria
+	-\launch
+		-\amcl.launch.xml configurazione dei parametri amcl
+		-\gmapping.launch.xml configurazione dei parametri gmapping
+		-\amcl_launcher.launch launcher di amcl
+		-\gmapping_launcher.launch launcher di gmapping
+	-\maps
+		... le varie mappe costruite (vedere dopo)
+	-\rviz contenente un file di configurazione per rviz
+	-\CMakeLists.txt 
+	-\package.xml
+		
+Il nome del parametro da modificare è odom_source che può assumere il valore o imu o encoders:
+usare il comando rosparam set odom_source imu (oppure encoders) per cambiare il parametro da riga di comando.
+In entrambi i progetti è presente un file \cfg\source_param.yaml che inizializza il parametro ad encoders. 
+Se si vuole che tale parametro sia settato in anticipo alla partenza della bag si possono (anche) modificare tali files.
+(usare "imu" o imu, o "encoders" o encoders è del tutto indifferente)
+
+Per testare il nodo di odometria su diverse bag, modificare il file launch/launcher.launch commentando/decommentando i vari args, esempio di args:
+    <arg name="file_1" default="/bags/square"/> 
+    <arg name="file_1_initial_position" default="0 0 0 0 0 0 1"/>
+    <arg name="file_1_odom_inital_position" default="-0.17 0 0.034 0 0 0 1"/>
+    <arg name = "is_corrupted_bag" default = "false"/>
+
+Per creare la mappa si sono provate diverse configurazioni:
+- per le mappe consistent_correct_params_long_corridor.map.yaml e consistent_params_long_corridor.map.yaml è
+ usata l'odometria degli encoders, utilizzando il bag del corridoio lungo (d'altra parte, 
+usare il bag del corridoio lungo per la localizzazione non credo avrebbe avuto molto senso, dato che il robot avrebbe
+trascorso molto tempo al di fuori della mappa tracciabile usando il bag del corridoio corto). Tutti i parametri di gmapping
+sono stati settati nel file di configurazione gmapping.launch.xml, che per la gran parte dei parametri
+ha valori piuttosto standard. Le uniche differenze tra le due mappe hanno riguardato modifiche all'algoritmo di gmapping
+in particolare ai vari parametri str, stt, linearUpdate e angularUpdate, fatte per bilanciare la grande incertezza
+ (specialmente nelle rotazioni) dei dati dell'odometria. ATTENZIONE: tali mappe sono state ottenute PRIMA della fine della bag.
+ Infatti, usando gli encoders si manifesta un corridoio fantasma che non sono riuscito a rimuovere in alcun modo (invece con l'imu
+ non ci sono corridoi fantasma).
+- nonostante per l'imu non sia riuscito a fare test intensivi (vedi dopo), ho voluto comunque provare a usare l'imu per il mapping, ottenendo
+buoni risultati (addirittura, è del tutto assente il corridoio fantasma che invece si genera con gli encoders ... anche se si 
+sporca un po' la ricostruzione della prima parte del corridoio) ... con un po' più di tempo per i test e dei dati di bag per la calibrazione
+ più puliti si sarebbero potuti ottenere risultati ancora migliori, probabilmente. Sono presenti due mappe:
+ 	-imu_map.yaml, catturata a bag non ancora conclusa (ha la prima parte del corridoio più pulita)
+	-imu_map_ended_bag.yaml, catturata a bag conclusa (per mettere in evidenza l'assenza di corridoi fantasma) 
+Per lanciare gmapping si è usato l'apposito file di launch, gmapping_launcher.launch
+Le mappe (come sempre, immagino) presentano degli artefatti, ma orientativamente sembrano plausibili.
+ATTENZIONE: la riga del file di launch
+  <node pkg="rosbag" type="play" name="player" output="screen" args="--clock $(find mapping_and_localization)/bags/corridor_long.bag"/>
+Determina la bag usata, se si vuole modificare la bag usata, modificare gli args di tale riga ...
+
+Per la localizzazione si consiglia di usare gli encoders (vedi dopo). Ho usato la bag del corridoio corto (per ragioni su dette).
+Ancora una volta le principali modifiche dei parametri nel file amcl.launch.xml hanno riguardato l'odometria (principalmente i vari odom_alpha).
+Per lanciare amcl si è usato l'apposito file di launch amcl_launcher.launch
+ATTENZIONE: la riga del file di launch
+  <node pkg="rosbag" type="play" name="player" output="screen" args="--clock $(find mapping_and_localization)/bags/corridor_short.bag"/>
+Determina la bag usata, se si vuole modificare la bag usata, modificare gli args di tale riga ...
+Inoltre, per modificare la mappa usata (se si vogliono testare più mappe) si modifichi la riga:
+  <arg name="map_file" default="$(find mapping_and_localization)/maps/imu_map_ended_bag.yaml"/> <!--  last_bag_corridor_long.yaml è la vecchia, consistent_params_long_corridor.map.yaml, consistent_correct_params_long_corridor-->
+
+MOLTO IMPORTANTE: 
+0) quando si usa rviz, assicurarsi di attivare manualmente la visualizzazione di qualunque cosa risulti utile (se necessario), in particolare
+i markers e i vari tf frame!
+
+1) invece di seguire le direttive della traccia di progetto riguardanti la gerarchia dei tf, si è preferito seguire
+le direttive standard di ROS, quindi i tf sono organizzati in un albero del tipo
+world->map->odom->base_link e NON come richiesto dalla traccia (i messaggi di odometria ecc. ecc. 
+sono calcolati rispetto a questo albero). In merito si consideri la discussione avuta su slack con il Prof. Mentasti.
+I risultati discretamente buoni ottenuti con questo albero sia per il mapping che per la localizzazione rendono accettabile la scelta.
+
+2) in assenza di buoni dati dell'imu (i dati forniti dalla bag sono corrotti, come segnalato su slack al Prof. Mentasti e come da 
+lui confermato), non avendo avuto un modo rapido di pulire tali dati (anche per mia mancanza di tempo e ragioni esterne all'università) 
+il parameter tuning per l'imu non è stato possibile effettuarlo in modo accurato su una bag dotata di posa 
+(farlo precisamente sul quadrato non è stato il massimo, visto che i dati geometrici del quadrato non sono noti ... ma mi sono
+ arrangiato, ottenendo risultati non ottimali, ma comunque buoni per il mapping (insufficienti per la localizzazione)). 
+In particolare, c'è una piccola distorsione iniziale sul valore dell'orientamento del robot che crea problemi per la localizzazione, ma non ne crea per il mapping.
+
+3) per la pubblicazione del messaggio custom di odom, semplicemente si è replicato il contenuto pubblicato già per il vero canale di odometria
+(usato da amcl e gmapping) e gli si è aggiunta una stringa (messaggio custom, come richiesto dalla traccia). Il topic è \custom_odom.
+
+5) I dati dell'imu presentano un grave bias (che ammonta a circa 0.31 !!!!!!), infatti usando la bag square, anche se si sta percorrendo un lato dritto,
+i dati dell'imu riportano una rotazione continua (del tutto insensato !!!). Tale bias è corretto programmaticamente, e piccole oscillazioni intorno a Tale
+valore vengono forzate a 0. Ciò ha permesso di ottenere buoni risultati con il mapping! Purtroppo, a causa di distorsioni nei valori iniziali dell'orientamento
+hanno reso la localizzazione impossibile (il robot parte con un'angolatura scorretta, e ciò inficia tutta la localizzazione seguente), ragione per cui per
+la localizzazione si raccomanda di usare gli encoders (che hanno ottime performance sia su mappe create da encoders che da imu!
+
+7) per l'integrazione odometrica si è usato un mix tra range-kutta (per piccoli valori) e metodo esatto. Il contributo dell'imu è solo
+sulla velocità angolare (come detto dal Prof. Mentasti sempre su slack). 
+
+8) in alcune bag i sensori, appena avviati, ritornano valori completamente sballati che fanno fare salti discontinui al robot ...
+poiché il robot si muove in modo pressoché continuo nello spazio, ho trovato ragionevole rimuovere tali artefatti ignorando
+dati che produrrebbero salti discontinui del robot.
+
+9) Per asserire la correttezza dei calcoli odometrici si è usata la bag square.bag, in cui il robot esegue approssimativamente un quadrato.
+Ovviamente l'odometria produce deviazioni dall'andamento reale e corretto del robot, e tali deviazioni si accumulano nel tempo! 
+(Credo sia piuttosto normale ...). Il parameter tuning è stato fatto "ad occhio" proprio su questa bag,
+non si è impiegato un metodo statistico per stimare i parametri. Considerando i risultati ottenuti, non è male come stima.
+(ho testato molti valori diversi da quelli settati nella consegna, anche con valori per la velocità lineare diversi da 1, ma 
+per il quadrato i risultati migliori li ho ottenuti settando a 1 quello della velocità lineare e a CIRCA 0.5 quello della velocità
+angolare ... quello della velocità angolare è stato calibrato in modo da ottenere angoli più o meno retti ad ogni svolta del quadrato; la
+scelta di tali due parametri sembra confermato abbastanza bene anche dalle altre bag, pur con il rumore introdotto dal fatto che i movimenti
+in tali bag sono molto più complessi)

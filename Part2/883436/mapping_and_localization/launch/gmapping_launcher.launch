@@ -1,0 +1,21 @@
+<launch>
+
+  <arg name="odom_frame_id"   default="odom"/>
+  <arg name="global_frame_id" default="map"/>
+  <param name="/use_sim_time" value="true"/>
+
+ <!-- Gmapping -->
+  <include file="$(find mapping_and_localization)/launch/gmapping.launch.xml"/>
+
+  <node pkg="rosbag" type="play" name="player" output="screen" args="--clock $(find mapping_and_localization)/bags/corridor_long.bag"/>
+
+    <!-- valori usati per le vecchie mappe 0 0 0 0 0 0 1 0.90 0.58 false-->
+    <!-- con i valori 1.0 0.49 e 0.1 ottiene ottimi risultati -->
+     <node name="odometry_node" pkg="odometry_node" type="odometry_node" args="0 0 0 0 0 0 1 1.0 0.49 0.55 false" output="screen"/>
+    <node pkg="tf" type="static_transform_publisher" name="map_to_odom" args="0.17 0 -0.034 0 0 0 1 map odom 1000"/>
+    <rosparam command="load" file="$(find mapping_and_localization)/cfg/source_param.yaml" />
+    <node name="marker_node" pkg="odometry_node" type="rviz_visual_node" output="screen"/>
+  <!--  **************** Visualisation ****************  -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find mapping_and_localization)/rviz/robot_navigation.rviz"/>
+</launch>
+
